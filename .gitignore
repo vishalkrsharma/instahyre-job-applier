@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Secrets & local configuration
+config.json
+.env
+.env.local
+.env.*.local
+
+# Playwright persisted profile (matches default userDataDir in config.example.json)
+.chrome-profile/
+
+# Logs
+*.log
+pnpm-debug.log*
+
+# Playwright outputs (reports / traces when enabled)
+playwright-report/
+test-results/
+blob-report/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/

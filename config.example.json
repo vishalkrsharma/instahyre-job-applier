@@ -1,0 +1,28 @@
+{
+  "credentials": {
+    "email": "you@example.com",
+    "password": "your_password"
+  },
+  "browser": {
+    "headless": false,
+    "channel": "chrome",
+    "userDataDir": "./.chrome-profile",
+    "slowMoMs": 50
+  },
+  "behavior": {
+    "applyToOpportunities": true,
+    "applyToCustomSearch": true,
+    "maxApplicationsPerRun": 100,
+    "delayBetweenApplicationsMs": [1500, 4000],
+    "dryRun": false
+  },
+  "filters": {
+    "skills": ["Python", "Node.js"],
+    "jobFunctions": ["Backend Engineer", "Full Stack Engineer"],
+    "industries": ["Software Product", "Internet"],
+    "locations": ["Bengaluru", "Remote"],
+    "companies": [],
+    "companySize": ["11-50", "51-200", "201-500"],
+    "experience": { "min": 3, "max": 7 }
+  }
+}

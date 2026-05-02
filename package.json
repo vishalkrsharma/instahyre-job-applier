@@ -1,0 +1,16 @@
+{
+  "name": "instahyre-job-applier",
+  "version": "1.0.0",
+  "description": "Automate Instahyre job applications (Opportunities tab + filtered search) via Playwright",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  }
+}
