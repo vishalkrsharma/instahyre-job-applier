@@ -2,6 +2,18 @@
  * Timestamped logging + per-run application stats.
  */
 
+import chalk from 'chalk';
+
+/**
+ * @param {unknown[]} args
+ */
+function tintDebugLeadingString(args) {
+  if (args.length === 0 || chalk.level === 0) return args;
+  const head = args[0];
+  if (typeof head !== 'string' || !head.includes('[debug]')) return args;
+  return [chalk.magenta(head), ...args.slice(1)];
+}
+
 export function createLogger() {
   const stats = {
     applied: 0,
@@ -14,16 +26,23 @@ export function createLogger() {
     return new Date().toISOString();
   }
 
+  function tsPrefix() {
+    return chalk.dim.gray(`[${ts()}]`);
+  }
+
   function info(...args) {
-    console.log(`[${ts()}]`, ...args);
+    const prefix = `${tsPrefix()} ${chalk.cyan('INF')}`;
+    console.log(prefix, ...tintDebugLeadingString(args));
   }
 
   function warn(...args) {
-    console.warn(`[${ts()}]`, ...args);
+    const prefix = `${tsPrefix()} ${chalk.yellow('WRN')}`;
+    console.warn(prefix, ...tintDebugLeadingString(args));
   }
 
   function error(...args) {
-    console.error(`[${ts()}]`, ...args);
+    const prefix = `${tsPrefix()} ${chalk.red.bold('ERR')}`;
+    console.error(prefix, ...args);
   }
 
   /**
@@ -37,13 +56,22 @@ export function createLogger() {
   }
 
   function summary() {
-    info('--- Run summary ---');
-    info(`Applied: ${stats.applied}  Skipped: ${stats.skipped}  Errors: ${stats.errors}`);
+    info(chalk.bold.blue('--- Run summary ---'));
+
+    const statsLine = `${chalk.green('Applied:')} ${stats.applied}  ${chalk.gray('Skipped:')} ${stats.skipped}  ${chalk.red('Errors:')} ${stats.errors}`;
+    info(statsLine);
+
     const recent = stats.entries.slice(-20);
     if (recent.length) {
-      info('Last entries:');
+      info(chalk.dim('Last entries:'));
       for (const e of recent) {
-        info(`  [${e.status}] ${e.source} ${e.company || ''} ${e.role || ''} ${e.detail || ''}`);
+        const statusLabel =
+          e.status === 'applied'
+            ? chalk.green(`[${e.status}]`)
+            : e.status === 'skipped'
+              ? chalk.gray(`[${e.status}]`)
+              : chalk.red(`[${e.status}]`);
+        info(`  ${statusLabel} ${e.source} ${e.company || ''} ${e.role || ''} ${e.detail || ''}`);
       }
     }
   }

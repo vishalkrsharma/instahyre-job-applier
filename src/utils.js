@@ -10,3 +10,17 @@ export function randomDelayMs(range) {
 export function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+/**
+ * Playwright throws when the user closes the browser or the context is torn down mid-operation.
+ * Treat these as intentional shutdown, not application failures.
+ *
+ * @param {unknown} e
+ */
+export function isBrowserClosedError(e) {
+  const msg =
+    typeof e === 'object' && e !== null && 'message' in e ? String(/** @type {{ message: unknown }} */ (e).message) : String(e ?? '');
+  return /has been closed|Browser has been closed|Execution context was destroyed|Target closed|Connection closed/i.test(
+    msg,
+  );
+}

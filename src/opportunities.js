@@ -22,6 +22,7 @@ export async function applyOpportunitiesTab(page, config, logger, limits) {
   }
 
   await page.goto(OPPORTUNITIES_URL, { waitUntil: 'domcontentloaded' });
+  logger.info('[debug] opportunities: navigated', OPPORTUNITIES_URL, 'actual:', page.url());
   await dismissOverlays(page);
   await page.waitForTimeout(2000);
 
@@ -39,6 +40,10 @@ export async function applyOpportunitiesTab(page, config, logger, limits) {
     });
     const count = await candidates.count();
     let progressed = false;
+
+    logger.info(
+      `[debug] opportunities loop: scrolls=${scrolls} stagnant=${stagnant}/${25} candidates=${count} applied=${limits.getApplied()}/${max}`,
+    );
 
     for (let i = 0; i < count && limits.getApplied() < max; i++) {
       const card = candidates.nth(i);
