@@ -1,10 +1,11 @@
-import { tryApply, dismissOverlays } from './applier.js';
+import { applyViaViewPopup, dismissOverlays } from './applier.js';
 
 /** Tweak if Instahyre changes layout */
 export const SELECTORS = {
   /** Cards that contain an apply-style button */
   cardHasApply:
     'div[class*="job"], div[class*="Job"], div[class*="card"], article, section[class*="item"]',
+  viewButton: 'button:has-text("View »")',
 };
 
 const OPPORTUNITIES_URL = 'https://www.instahyre.com/candidate/opportunities/';
@@ -24,51 +25,61 @@ export async function applyOpportunitiesTab(page, config, logger, limits) {
   await page.goto(OPPORTUNITIES_URL, { waitUntil: 'domcontentloaded' });
   logger.info('[debug] opportunities: navigated', OPPORTUNITIES_URL, 'actual:', page.url());
   await dismissOverlays(page);
-  await page.waitForTimeout(2000);
+  await page.waitForLoadState('networkidle').catch(() => {});
+
+  const initialViewButton = page
+    .locator('button#interested-btn')
+    .or(page.getByRole('button', { name: /^View(?:\s+job)?(?:\s*»)?$/i }))
+    .first();
+  const initialCards = page.locator(SELECTORS.cardHasApply).first();
+  await Promise.race([
+    initialViewButton.waitFor({ state: 'visible', timeout: 12000 }),
+    initialCards.waitFor({ state: 'visible', timeout: 12000 }),
+  ]).catch(() => {});
+  const initialCardCount = await page.locator(SELECTORS.cardHasApply).count();
+  const initialHasView = await initialViewButton.isVisible().catch(() => false);
+  logger.info(
+    `[debug] opportunities: initial wait done cards=${initialCardCount} hasView=${initialHasView}`,
+  );
 
   const delayRange = config.behavior.delayBetweenApplicationsMs;
   const max = config.behavior.maxApplicationsPerRun;
-  const seen = new Set();
   let stagnant = 0;
   let scrolls = 0;
+  let foundAnyJob = false;
 
   while (limits.getApplied() < max && scrolls < 400 && stagnant < 25) {
     await dismissOverlays(page);
 
-    const candidates = page.locator(SELECTORS.cardHasApply).filter({
-      has: page.locator('button').filter({ hasText: /I'm interested|Apply/i }),
-    });
-    const count = await candidates.count();
+    const visibleViewButton = page
+      .locator('button#interested-btn')
+      .or(page.getByRole('button', { name: /^View(?:\s+job)?(?:\s*»)?$/i }))
+      .first();
+    const hasView = await visibleViewButton.isVisible().catch(() => false);
+    const count = await page.locator(SELECTORS.cardHasApply).count();
     let progressed = false;
 
     logger.info(
-      `[debug] opportunities loop: scrolls=${scrolls} stagnant=${stagnant}/${25} candidates=${count} applied=${limits.getApplied()}/${max}`,
+      `[debug] opportunities loop: scrolls=${scrolls} stagnant=${stagnant}/${25} cards=${count} hasView=${hasView} applied=${limits.getApplied()}/${max}`,
     );
 
-    for (let i = 0; i < count && limits.getApplied() < max; i++) {
-      const card = candidates.nth(i);
-      if (!(await card.isVisible().catch(() => false))) continue;
+    if (!hasView && !foundAnyJob && scrolls === 0) {
+      logger.info('[debug] opportunities: no jobs with View button. Moving to filtered search.');
+      break;
+    }
 
-      const fingerprint = (await card.innerText().catch(() => '')).slice(0, 280).replace(/\s+/g, ' ').trim();
-      if (!fingerprint || seen.has(fingerprint)) continue;
-      seen.add(fingerprint);
-
-      const lines = fingerprint.split('\n').map((l) => l.trim()).filter(Boolean);
-      const company = lines[0] || undefined;
-      const role = lines[1] || undefined;
-
+    if (hasView) {
+      foundAnyJob = true;
       const before = limits.getApplied();
-      const result = await tryApply(page, {
-        container: card,
+      const appliedInPopup = await applyViaViewPopup(page, {
         logger,
         source: 'opportunities',
         dryRun: config.behavior.dryRun,
-        company,
-        role,
         delayRange,
+        remainingCap: max - limits.getApplied(),
       });
-      if (result === 'applied') limits.bumpApplied();
-      if (limits.getApplied() !== before || result !== 'skipped') progressed = true;
+      for (let i = 0; i < appliedInPopup; i += 1) limits.bumpApplied();
+      if (limits.getApplied() !== before || appliedInPopup > 0) progressed = true;
     }
 
     if (!progressed) stagnant += 1;

@@ -1,4 +1,4 @@
-import { tryApply, dismissOverlays } from './applier.js';
+import { applyViaViewPopup, dismissOverlays } from './applier.js';
 import { escapeRegExp } from './utils.js';
 
 export const SELECTORS = {
@@ -231,40 +231,33 @@ async function scrollApplyFromSearch(page, config, logger, limits, seen) {
   while (limits.getApplied() < max && scrolls < 500 && stagnant < 30) {
     await dismissOverlays(page);
 
-    const rows = page.locator(SELECTORS.jobRow).filter({
-      has: page.locator('button').filter({ hasText: /I'm interested|Apply/i }),
-    });
-    const count = await rows.count();
+    const visibleViewButton = page.getByRole('button', { name: /^View(\s+job)?$/i }).first();
+    const hasView = await visibleViewButton.isVisible().catch(() => false);
+    const count = await page.locator(SELECTORS.jobRow).count();
     let progressed = false;
 
     logger.info(
-      `[debug] search scroll loop: scrolls=${scrolls} stagnant=${stagnant}/30 rowsWithApply=${count} applied=${limits.getApplied()}/${max} url=${page.url()}`,
+      `[debug] search scroll loop: scrolls=${scrolls} stagnant=${stagnant}/30 rows=${count} hasView=${hasView} applied=${limits.getApplied()}/${max} url=${page.url()}`,
     );
 
-    for (let i = 0; i < count && limits.getApplied() < max; i++) {
-      const card = rows.nth(i);
-      if (!(await card.isVisible().catch(() => false))) continue;
-
-      const fingerprint = (await card.innerText().catch(() => '')).slice(0, 320).replace(/\s+/g, ' ').trim();
-      if (!fingerprint || seen.has(fingerprint)) continue;
-      seen.add(fingerprint);
-
-      const lines = fingerprint.split('\n').map((l) => l.trim()).filter(Boolean);
-      const company = lines[0] || undefined;
-      const role = lines[1] || undefined;
-
+    if (hasView) {
       const before = limits.getApplied();
-      const result = await tryApply(page, {
-        container: card,
+      const appliedInPopup = await applyViaViewPopup(page, {
         logger,
         source: 'search',
         dryRun: config.behavior.dryRun,
-        company,
-        role,
         delayRange,
+        remainingCap: max - limits.getApplied(),
       });
-      if (result === 'applied') limits.bumpApplied();
-      if (limits.getApplied() !== before || result !== 'skipped') progressed = true;
+      for (let i = 0; i < appliedInPopup; i += 1) limits.bumpApplied();
+      if (limits.getApplied() !== before || appliedInPopup > 0) progressed = true;
+      if (appliedInPopup > 0) {
+        const pageFingerprint = (await page.locator('body').innerText().catch(() => ''))
+          .slice(0, 320)
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (pageFingerprint) seen.add(pageFingerprint);
+      }
     }
 
     if (!progressed) stagnant += 1;

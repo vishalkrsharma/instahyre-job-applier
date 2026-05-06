@@ -8,11 +8,18 @@ importers:
 
   .:
     dependencies:
+      chalk:
+        specifier: ^5.6.2
+        version: 5.6.2
       playwright:
         specifier: ^1.49.0
         version: 1.59.1
 
 packages:
+
+  chalk@5.6.2:
+    resolution: {integrity: sha512-7NzBL0rN6fMUW+f7A6Io4h40qQlG+xGmtMxfbnH/K7TAtt8JQWVQK+6g0UXKMeVJoyV5EkkNsErQ8pVD3bLHbA==}
+    engines: {node: ^12.17.0 || ^14.13 || >=16.0.0}
 
   fsevents@2.3.2:
     resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
@@ -30,6 +37,8 @@ packages:
     hasBin: true
 
 snapshots:
+
+  chalk@5.6.2: {}
 
   fsevents@2.3.2:
     optional: true
